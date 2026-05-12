@@ -50,6 +50,8 @@ RUBRIC SECTIONS:
 from flask import Flask, render_template, request, jsonify, flash, redirect, url_for
 import sqlite3
 import os
+import hashlib
+import binascii
 
 app = Flask(__name__)
 
@@ -76,12 +78,34 @@ app = Flask(__name__)
 #   D1: Describe 2 mitigation strategies for this vulnerability
 # =============================================================================
 
-app.secret_key = 'supersecretkeyforflasksessions'
+#Old insecure hardcoded secret key
+# app.secret_key = 'supersecretkeyforflasksessions'
 
-API_KEY = "sk_live_abc123xyz789secretkey"
+#API_KEY = "sk_live_abc123xyz789secretkey"
 
-DB_USER = "admin"
-DB_PASSWORD = "password123"
+#DB_USER = "admin"
+#DB_PASSWORD = "password123"
+
+#New secure code
+app.secret_key = os.environ.get(
+    'FLASK_SECRET_KEY', 
+    os.urandom(32).hex()
+)
+
+API_KEY = os.environ.get(
+    'API_KEY',
+    os.urandom(32).hex()
+)
+
+DB_USER = os.environ.get(
+    'DB_USER',
+    'app_user'
+)
+
+DB_PASSWORD = os.environ.get(
+    'DB_PASSWORD',
+    "fallback_password"
+)
 
 # Equipment Pricing Data
 EQUIPMENT_PRICES = {
@@ -111,13 +135,40 @@ EQUIPMENT_PRICES = {
 #   D1: Describe 2 mitigation strategies for this vulnerability
 # =============================================================================
 
-USERS_DB = {
-    "admin": {"password": "admin123", "role": "admin", "api_key": "sk_admin_key123"},
-    "alice": {"password": "alice456", "role": "user", "api_key": "sk_alice_key456"},
-    "bob": {"password": "bob789", "role": "user", "api_key": "sk_bob_key789"},
-    "charlie": {"password": "charlie000", "role": "guest", "api_key": "sk_charlie_key000"}
-}
+#old insecure code
+# USERS_DB = {
+#     "admin": {"password": "admin123", "role": "admin", "api_key": "sk_admin_key123"},
+#     "alice": {"password": "alice456", "role": "user", "api_key": "sk_alice_key456"},
+#     "bob": {"password": "bob789", "role": "user", "api_key": "sk_bob_key789"},
+#     "charlie": {"password": "charlie000", "role": "guest", "api_key": "sk_charlie_key000"}
+# }
 
+#new secure code 
+def hash_password(password):
+    salt = os.urandom(16)
+
+    key = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        salt,
+        100000
+    )
+    return binascii.hexlify(salt + key).decode('utf-8')
+
+USERS_DB = {
+    "admin": {"password": hash_password("admin123"),
+               "role": "admin",
+               "api_key" : os.environ.get('ADMIN_API_KEY', os.urandom(32).hex())},
+    "alice": {"password": hash_password("alice456"), 
+              "role": "user",
+              "api_key": os.environ.get('ALICE_API_KEY', os.urandom(32).hex())},
+    "bob": {"password": hash_password("bob789"),
+            "role": "user",
+            "api_key": os.environ.get('BOB_API_KEY', os.urandom(32).hex())},
+    "charlie": {"password": hash_password("charlie000"),
+                "role": "guest",
+                "api_key": os.environ.get('CHARLIE_API_KEY', os.urandom(32).hex())}
+}
 # =============================================================================
 # Additional General Vulnerabilities (from flake8 report)
 # You may also choose from these for Section A:
