@@ -254,21 +254,42 @@ def init_database():
 #   D1: Describe 2 mitigation strategies for this vulnerability
 # =============================================================================
 
+# Old insecure code
+# def require_api_key():
+#     """
+#     TODO (Section B): Implement API Key Authentication
+
+#     This function should:
+#     1. Extract the API key from the Authorization header
+#        - Expected format: "Bearer <api_key>"
+#     2. Validate the API key against USERS_DB
+#     3. Return the username if valid, None if invalid
+
+#     SECURITY NOTE: API keys should be transmitted in headers, NOT URL parameters.
+#     See CWE-598 (Use of GET Request Method With Sensitive Query Strings).
+#     """
+#     # INSECURE: Currently returns None (no authentication)
+#     # TODO: Implement proper API key validation
+#     return None
+
+#secuure implementation
 def require_api_key():
-    """
-    TODO (Section B): Implement API Key Authentication
 
-    This function should:
-    1. Extract the API key from the Authorization header
-       - Expected format: "Bearer <api_key>"
-    2. Validate the API key against USERS_DB
-    3. Return the username if valid, None if invalid
+    auth_header = request.headers.get("Authorization")
 
-    SECURITY NOTE: API keys should be transmitted in headers, NOT URL parameters.
-    See CWE-598 (Use of GET Request Method With Sensitive Query Strings).
-    """
-    # INSECURE: Currently returns None (no authentication)
-    # TODO: Implement proper API key validation
+    if not auth_header:
+        return None
+
+    if not auth_header.startswith("Bearer "):
+        return None
+
+    api_key = auth_header.split(" ")[1]
+
+    for username, data in USERS_DB.items():
+
+        if data["api_key"] == api_key:
+            return username
+
     return None
 
 
@@ -296,24 +317,40 @@ def require_api_key():
 #   D1: Describe 2 mitigation strategies for this vulnerability
 # =============================================================================
 
+# Old insecure code
+# def require_role(username, required_role):
+#     """
+#     TODO (Section B): Implement Role-Based Authorization (Least Privilege)
+
+#     This function should:
+#     1. Look up the user's role from USERS_DB
+#     2. Check if the user's role meets the required permission level
+#     3. Return True if authorized, False otherwise
+
+#     Role hierarchy (suggestion):
+#     - admin: can access everything
+#     - user: can access user-level endpoints
+#     - guest: limited read-only access
+#     """
+#     # INSECURE: Currently always returns True (no authorization)
+#     # TODO: Implement proper role checking
+#     return True
+
+# new secure code
 def require_role(username, required_role):
-    """
-    TODO (Section B): Implement Role-Based Authorization (Least Privilege)
 
-    This function should:
-    1. Look up the user's role from USERS_DB
-    2. Check if the user's role meets the required permission level
-    3. Return True if authorized, False otherwise
+    if username not in USERS_DB:
+        return False
 
-    Role hierarchy (suggestion):
-    - admin: can access everything
-    - user: can access user-level endpoints
-    - guest: limited read-only access
-    """
-    # INSECURE: Currently always returns True (no authorization)
-    # TODO: Implement proper role checking
-    return True
+    user_role = USERS_DB[username]["role"]
 
+    role_hierarchy = {
+        "guest": 1,
+        "user": 2,
+        "admin": 3
+    }
+
+    return role_hierarchy[user_role] >= role_hierarchy[required_role]
 
 # =============================================================================
 # Additional API Vulnerabilities (from bandit report + code review)
