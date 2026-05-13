@@ -29,9 +29,15 @@ Hint: Import from your solution file like this:
 
 import pytest
 import json
+from flask import Flask, render_template, request, jsonify, flash, redirect, url_for
+import sqlite3
+import os
+import hashlib
+import binascii
 
 # TODO: Import your Flask app and any functions you want to test
 # from app_solution import app, EQUIPMENT_PRICES, USERS_DB
+from app_student import app, USERS_DB
 
 
 # ------------------------------------------------------------
@@ -39,12 +45,12 @@ import json
 # Uncomment once you import your app
 # ------------------------------------------------------------
 
-# @pytest.fixture
-# def client():
-#     """Create a test client for the Flask application."""
-#     app.config['TESTING'] = True
-#     with app.test_client() as client:
-#         yield client
+@pytest.fixture
+def client():
+    """Create a test client for the Flask application."""
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
 
 
 # ============================================================
@@ -58,7 +64,7 @@ import json
 # This test should verify that secrets are no longer hardcoded.
 # ------------------------------------------------------------
 
-def test_general_vuln_1_hardcoded_secrets_remediated():
+#def test_general_vuln_1_hardcoded_secrets_remediated():
     """
     TODO: Test that hardcoded secrets have been replaced with secure alternatives.
 
@@ -73,7 +79,13 @@ def test_general_vuln_1_hardcoded_secrets_remediated():
               "now using environment variable or generated token")
     """
     # TODO: Write your test with assert and print()
-    pass  # Remove this line when you add your test
+def test_general_vuln_1_hardcoded_secrets_remediated():
+
+    from app_student import app
+
+    assert app.secret_key != 'supersecretkeyforflasksessions'
+
+    print("PASS: Hardcoded Flask secret key removed and replaced securely.")
 
 
 # ------------------------------------------------------------
@@ -81,7 +93,7 @@ def test_general_vuln_1_hardcoded_secrets_remediated():
 # This test should verify that passwords are hashed, not plaintext.
 # ------------------------------------------------------------
 
-def test_general_vuln_2_plaintext_passwords_remediated():
+#def test_general_vuln_2_plaintext_passwords_remediated():
     """
     TODO: Test that passwords are stored as hashes, not plaintext.
 
@@ -99,7 +111,16 @@ def test_general_vuln_2_plaintext_passwords_remediated():
               "plaintext passwords have been removed from the database")
     """
     # TODO: Write your test with assert and print()
-    pass  # Remove this line when you add your test
+def test_general_vuln_2_plaintext_passwords_remediated():
+
+    from app_student import USERS_DB
+
+    for username, data in USERS_DB.items():
+
+        assert 'password' not in data
+        assert 'password_hash' in data
+
+    print("PASS: Plaintext passwords removed and replaced with hashed passwords.")
 
 
 # ============================================================
@@ -113,7 +134,7 @@ def test_general_vuln_2_plaintext_passwords_remediated():
 # This test should verify that endpoints now require authentication.
 # ------------------------------------------------------------
 
-def test_api_vuln_1_authentication_required():
+#def test_api_vuln_1_authentication_required():
     """
     TODO: Test that API endpoints require authentication.
 
@@ -131,7 +152,13 @@ def test_api_vuln_1_authentication_required():
               "unauthenticated requests receive 401 Unauthorized")
     """
     # TODO: Write your test with assert and print()
-    pass  # Remove this line when you add your test
+def test_api_vuln_1_authentication_required(client):
+
+    response = client.get('/api/v1/admin/users')
+
+    assert response.status_code == 401
+
+    print("PASS: API endpoint now requires authentication.")
 
 
 # ------------------------------------------------------------
@@ -139,7 +166,7 @@ def test_api_vuln_1_authentication_required():
 # This test should verify that role-based access control works.
 # ------------------------------------------------------------
 
-def test_api_vuln_2_authorization_enforced():
+#def test_api_vuln_2_authorization_enforced():
     """
     TODO: Test that authorization and least privilege are enforced.
 
@@ -160,7 +187,20 @@ def test_api_vuln_2_authorization_enforced():
               "regular user denied access to admin endpoint with 403 Forbidden")
     """
     # TODO: Write your test with assert and print()
-    pass  # Remove this line when you add your test
+def test_api_vuln_2_authorization_enforced(client):
+
+    user_api_key = USERS_DB['alice']['api_key']
+
+    response = client.get(
+        '/api/v1/admin/users',
+        headers={
+            'Authorization': f'Bearer {user_api_key}'
+        }
+    )
+
+    assert response.status_code == 403
+
+    print("PASS: Authorization enforcement prevents regular users from admin access.")
 
 
 # ============================================================
