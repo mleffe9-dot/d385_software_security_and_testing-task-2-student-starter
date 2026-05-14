@@ -156,16 +156,16 @@ def hash_password(password):
     return binascii.hexlify(salt + key).decode('utf-8')
 
 USERS_DB = {
-    "admin": {"password": hash_password("admin123"),
+    "admin": {"password_hash": hash_password("admin123"),
                "role": "admin",
                "api_key" : os.environ.get('ADMIN_API_KEY', os.urandom(32).hex())},
-    "alice": {"password": hash_password("alice456"), 
+    "alice": {"password_hash": hash_password("alice456"), 
               "role": "user",
               "api_key": os.environ.get('ALICE_API_KEY', os.urandom(32).hex())},
-    "bob": {"password": hash_password("bob789"),
+    "bob": {"password_hash": hash_password("bob789"),
             "role": "user",
             "api_key": os.environ.get('BOB_API_KEY', os.urandom(32).hex())},
-    "charlie": {"password": hash_password("charlie000"),
+    "charlie": {"password_hash": hash_password("charlie000"),
                 "role": "guest",
                 "api_key": os.environ.get('CHARLIE_API_KEY', os.urandom(32).hex())}
 }
@@ -523,22 +523,26 @@ def create_rental():
 # Code review finding: CWE-306 — Missing Authentication for Critical Function
 # =============================================================================
 @app.route('/api/v1/admin/users', methods=['GET'])
-def admin_get_all_users():
-    """
-    Administrative endpoint to list all users.
+def get_all_users():
 
-    VULNERABILITY (CWE-306): No authentication or authorization!
-    Anyone can access the full list of users.
+    user = require_api_key()
 
-    TODO (Section B — if chosen): Require API key + admin role
-    """
-    # INSECURE: No authentication or authorization check!
+    if not user:
+        return jsonify({
+            "status": "error",
+            "message": "Authentication required"
+        }), 401
+
+    if not require_role(user, "admin"):
+        return jsonify({
+            "status": "error",
+            "message": "Forbidden"
+        }), 403
+
     return jsonify({
         "status": "success",
-        "data": list(USERS_DB.keys()),
-        "message": "Admin access granted"
+        "users": list(USERS_DB.keys())
     })
-
 
 @app.route('/api/v1/admin/delete_user', methods=['DELETE'])
 def admin_delete_user():
@@ -621,7 +625,7 @@ def authenticate():
 
     if username in USERS_DB:
         # INSECURE: Plain text password comparison
-        if USERS_DB[username]['password'] == password:
+        if USERS_DB[username]['password_hash'] == password:
             return jsonify({
                 "status": "success",
                 "message": "Authentication successful",
@@ -647,7 +651,7 @@ def login():
         username = request.form.get("username")
         password = request.form.get("password")
 
-        if username in USERS_DB and USERS_DB[username]['password'] == password:
+        if username in USERS_DB and USERS_DB[username]['password_hash'] == password:
             flash(f"Welcome back, {username}!", "success")
             return redirect(url_for('home'))
         else:
